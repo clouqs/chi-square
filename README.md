@@ -12,4 +12,4 @@ Chi-square test for estimating variance confidence interval given sample varianc
 5) done
 
 
-Also has t-estimates and F-distribution for ratio
+Also has t-estimates and F-distribution for ratios
