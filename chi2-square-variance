@@ -1,0 +1,159 @@
+#pragma mode( separator(.,;) integer(h32) )
+
+EXPORT conf_intervals()
+begin
+  local choice, conf, result;
+  
+  choice:=choose(conf, "Confidence Intervals", 
+    "t-distribution (mean)", 
+    "Chi-square (variance)", 
+    "F-distribution (ratio vars)");
+  
+  case
+    if choice==1 then result:=conf_t(); end;
+    if choice==2 then result:=conf_chi2(); end;
+    if choice==3 then result:=conf_f(); end;
+    default return "Cancelled";
+  end;
+  
+  return result;
+end;
+
+
+// ===== CONFIDENCE INTERVAL FOR MEAN (t-distribution) =====
+conf_t()
+begin
+  local xbar, s, n, conflevel;
+  local alpha, t_crit, se, me, lower, upper;
+  
+  xbar:=100;
+  s:=15;
+  n:=25;
+  conflevel:=0.95;
+  
+  input({xbar, s, n, conflevel}, 
+    "Conf. Interval for Mean (t)", 
+    {"Sample mean=", "Sample std dev s=", "Sample size n=", "Confidence level="}, 
+    {"Sample mean x-bar", "Sample standard deviation", "Sample size", "Confidence level (e.g. 0.95 for 95%)"},
+    {100, 15, 25, 0.95});
+  
+  if n<2 then
+    msgbox("Sample size must be >= 2");
+    return "Error: n < 2";
+  end;
+  
+  if (conflevel<=0) or (conflevel>=1) then
+    msgbox("Confidence level must be between 0 and 1");
+    return "Error: invalid confidence level";
+  end;
+  
+  alpha:=(1-conflevel)/2;
+  t_crit:=student_icdf(n-1, 1-alpha);
+  se:=s/sqrt(n);
+  me:=t_crit*se;
+  lower:=xbar-me;
+  upper:=xbar+me;
+  
+  msgbox("Confidence Interval for Mean (t-distribution)|" +
+         "Confidence level: " + (conflevel*100) + "%|" +
+         "Degrees of freedom: " + (n-1) + "|" +
+         "t-critical: " + round(t_crit,4) + "|" +
+         "Margin of error: " + round(me,4) + "|" +
+         "Interval: [" + round(lower,4) + ", " + round(upper,4) + "]");
+  
+  return {"lower", lower, "upper", upper, "margin", me};
+end;
+
+
+// ===== CONFIDENCE INTERVAL FOR VARIANCE (Chi-square) =====
+conf_chi2()
+begin
+  local s2, n, conflevel;
+  local alpha, chi_lower, chi_upper, lower, upper;
+  
+  s2:=225;
+  n:=25;
+  conflevel:=0.95;
+  
+  input({s2, n, conflevel}, 
+    "Conf. Interval for Variance (Chi2)", 
+    {"Sample variance s2=", "Sample size n=", "Confidence level="}, 
+    {"Sample variance s-squared", "Sample size", "Confidence level (e.g. 0.95 for 95%)"},
+    {225, 25, 0.95});
+  
+  if n<2 then
+    msgbox("Sample size must be >= 2");
+    return "Error: n < 2";
+  end;
+  
+  if (conflevel<=0) or (conflevel>=1) then
+    msgbox("Confidence level must be between 0 and 1");
+    return "Error: invalid confidence level";
+  end;
+  
+  alpha:=(1-conflevel)/2;
+  chi_lower:=chisquare_icdf(n-1, alpha);
+  chi_upper:=chisquare_icdf(n-1, 1-alpha);
+  
+  lower:=(n-1)*s2/chi_upper;
+  upper:=(n-1)*s2/chi_lower;
+  
+  msgbox("Confidence Interval for Variance (Chi-square)|" +
+         "Confidence level: " + (conflevel*100) + "%|" +
+         "Degrees of freedom: " + (n-1) + "|" +
+         "Chi2 lower: " + round(chi_lower,4) + "|" +
+         "Chi2 upper: " + round(chi_upper,4) + "|" +
+         "Variance interval: [" + round(lower,4) + ", " + round(upper,4) + "]|" +
+         "Std dev interval: [" + round(sqrt(lower),4) + ", " + round(sqrt(upper),4) + "]");
+  
+  return {"var_lower", lower, "var_upper", upper, "sd_lower", sqrt(lower), "sd_upper", sqrt(upper)};
+end;
+
+
+// ===== CONFIDENCE INTERVAL FOR RATIO OF VARIANCES (F-distribution) =====
+conf_f()
+begin
+  local s1, n1, s2, n2, conflevel;
+  local alpha, f_lower, f_upper, ratio, lower, upper;
+  
+  s1:=225;
+  n1:=25;
+  s2:=196;
+  n2:=20;
+  conflevel:=0.95;
+  
+  input({s1, n1, s2, n2, conflevel}, 
+    "Conf. Interval for Ratio (F)", 
+    {"Sample 1 var s1^2=", "Sample 1 size n1=", "Sample 2 var s2^2=", "Sample 2 size n2=", "Confidence level="}, 
+    {"Variance of sample 1", "Size of sample 1", "Variance of sample 2", "Size of sample 2", "Confidence level (e.g. 0.95)"},
+    {225, 25, 196, 20, 0.95});
+  
+  if (n1<2) or (n2<2) then
+    msgbox("Sample sizes must be >= 2");
+    return "Error: n < 2";
+  end;
+  
+  if (conflevel<=0) or (conflevel>=1) then
+    msgbox("Confidence level must be between 0 and 1");
+    return "Error: invalid confidence level";
+  end;
+  
+  alpha:=(1-conflevel)/2;
+  ratio:=s1/s2;
+  
+  f_lower:=fisher_icdf(n1-1, n2-1, alpha);
+  f_upper:=fisher_icdf(n1-1, n2-1, 1-alpha);
+  
+  lower:=ratio/f_upper;
+  upper:=ratio/f_lower;
+  
+  msgbox("Confidence Interval for Variance Ratio (F)|" +
+         "Confidence level: " + (conflevel*100) + "%|" +
+         "DF1: " + (n1-1) + ", DF2: " + (n2-1) + "|" +
+         "F lower: " + round(f_lower,4) + "|" +
+         "F upper: " + round(f_upper,4) + "|" +
+         "Sample ratio s1^2/s2^2: " + round(ratio,4) + "|" +
+         "Ratio interval: [" + round(lower,4) + ", " + round(upper,4) + "]");
+  
+  return {"ratio", ratio, "lower", lower, "upper", upper};
+end;
